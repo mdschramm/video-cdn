@@ -45,9 +45,11 @@ def connect2server():
             cv2.IMREAD_COLOR
         )
         cv2.imshow('Client', image)
-        if cv2.waitKey(1) == 13:
-            break
 
+        # Quit video with q
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            cv2.destroyAllWindows()
+            break
         # discard last frame's data and continue
         window = window[frame_size:]
     cv2.destroyAllWindows()

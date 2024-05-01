@@ -13,7 +13,7 @@ address = ('localhost', 10001)
 # client
 def connect2server():
     s = socket.create_connection(address)
-    # collects bytes from the server in chunks
+    # window of bytes to process
     window = b""
     # size of data containing the frame size
     frame_size_header_len = struct.calcsize("Q")

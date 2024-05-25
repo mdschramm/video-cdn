@@ -1,18 +1,19 @@
 from datetime import datetime, timezone, timedelta
 from fabrictestbed_extensions.fablib.fablib import FablibManager as fablib_manager
+from nodes import make_servers, list_server_nodes, site1, site2, site3, site4
 import os
 
 
 fablib = fablib_manager()
 
+fablib.show_config();
+
 slice_name = 'client_server_video'
 
-server_node_name = 'Server'
-server_node_name2 = 'Server2'
 client_node_name = 'Client'
 lb_node_name = 'Load_Balancer'
 
-server_nodes = [server_node_name, server_node_name2]
+video_file_name = 'cars.mp4'
 
 def renew_slice():
     end_date = (datetime.now(timezone.utc) + timedelta(days=6)).strftime("%Y-%m-%d %H:%M:%S %z")
@@ -32,6 +33,7 @@ def delete_slice():
         print(f"Exception: {e}")
 
 def ping(my_slice, from_name, to_name):
+    print(f'Pinging from {from_name} to {to_name}')
     from_node = my_slice.get_node(name=from_name)
     to_node = my_slice.get_node(name=to_name)
     to_addr = to_node.get_interface(network_name=f'FABNET_IPv4_{to_node.get_site()}').get_ip_addr()
@@ -43,14 +45,10 @@ def make_slice():
     
     my_slice = fablib.new_slice(name=slice_name)
     
-    [site1, site2, site3, site4] = ['PSC', 'MASS', 'WASH', 'PRIN']
     print(f"Sites: {site1}, {site2}, {site3}, {site4}")
 
-    server_node = my_slice.add_node(name=server_node_name, site=site1, image='default_ubuntu_22')
-    server_node.add_fabnet()
+    make_servers(my_slice)
 
-    server_node2 = my_slice.add_node(name=server_node_name2, site=site4, image='default_ubuntu_22')
-    server_node2.add_fabnet()
 
     client_node = my_slice.add_node(name=client_node_name, site=site2, image='default_ubuntu_22')
     client_node.add_fabnet()
@@ -131,8 +129,10 @@ def lb_setup(lb_node, lbmethod):
     # update and install net-tools and apache2
     stdout, stderr = lb_node.execute('sudo apt-get update && sudo apt install net-tools && sudo apt-get -y install apache2 && sudo apt install tcpdump')
 
+
+    server_node_names = [n.get_name() for n in list_server_nodes(my_slice)]
     # create and upload the reverse-proxy.conf file
-    write_reverse_proxy_conf(server_nodes = server_nodes, lbmethod = lbmethod)
+    write_reverse_proxy_conf(server_nodes = server_node_names, lbmethod = lbmethod)
     
     # append line to apache2.conf UNCOMMENT IF FIRST TIME RUNNING
     ac_command = 'echo "Include reverse-proxy.conf" | sudo tee -a /etc/apache2/apache2.conf'
@@ -151,58 +151,51 @@ def get_slice():
 
 my_slice = get_slice()
 
-server_node = my_slice.get_node(name=server_node_name)
-server2_node = my_slice.get_node(name=server_node_name2)
 client_node = my_slice.get_node(name=client_node_name)
 lb_node = my_slice.get_node(name=lb_node_name)
 
 
 
 def setup_nodes():
-    server_setup(server_node)
-    server_setup(server2_node)
+    for sn in list_server_nodes(my_slice):
+        server_setup(sn)
     client_setup(client_node)
     lb_setup(lb_node, lbmethod = 'byrequests')
 
-if __name__ == '__main__':
-    fablib.show_config()
-    # setup_nodes()
-    renew_slice()
-# delete_slice()
-    
 
 # verify communication
 def verify_nodes():
-    print(f'{server_node_name} pinging {client_node_name}')
-    ping(my_slice, server_node_name, client_node_name)
+    # server to client
+    for sn in list_server_nodes(my_slice):
+        sn_name = sn.get_name()
+        ping(my_slice, sn_name, client_node_name)
+        ping(my_slice, sn_name, lb_node_name)
 
-    print(f'{server_node_name2} pinging {client_node_name}')
-    ping(my_slice, server_node_name2, client_node_name)
+    ping(my_slice, client_node_name, lb_node_name)
 
-    print(f'{server_node_name} pinging {lb_node_name}')
-    ping(my_slice, server_node_name, lb_node_name)
+if __name__ == '__main__':
+    pass
+    # setup_nodes()
+    # renew_slice()
+    # delete_slice()
+    # verify_nodes()
+    
 
-    print(f'{server_node_name2} pinging {lb_node_name}')
-    ping(my_slice, server_node_name2, lb_node_name)
 
-    print(f'{lb_node_name} pinging {client_node_name}')
-    ping(my_slice, lb_node_name, client_node_name)
+    
 
 def print_node_sshs():
-    print('server')
-    print(server_node.get_ssh_command())
-    print('server2')
+    for sn in list_server_nodes(my_slice):
+        print(sn.get_name())
+        print(sn.get_ssh_command())
     
-    print(server2_node.get_ssh_command())
     print('client')
-    
     print(client_node.get_ssh_command())
     print('lb')
-    
     print(lb_node.get_ssh_command())
 
 def print_node_ips():
-    print(f'Server site IP: {get_node_site_ip_addr(server_node)}')
-    print(f'Server2 site IP: {get_node_site_ip_addr(server2_node)}')
+    for sn in list_server_nodes(my_slice):
+        print(f'{sn.get_name()} site IP: {get_node_site_ip_addr(sn)}')
     print(f'Client site IP: {get_node_site_ip_addr(client_node)}')
     print(f'LB site IP: {get_node_site_ip_addr(lb_node)}')

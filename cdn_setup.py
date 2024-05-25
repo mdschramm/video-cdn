@@ -15,6 +15,8 @@ server_node_name2 = 'Server2'
 client_node_name = 'Client'
 lb_node_name = 'Load_Balancer'
 
+server_nodes = [server_node_name, server_node_name2]
+
 slice_file = 'cdn_setup.graphml'
 
 
@@ -93,42 +95,62 @@ def client_setup(client_node):
 def get_node_site_ip_addr(node):
     return node.get_interface(network_name=f'FABNET_IPv4_{node.get_site()}').get_ip_addr()
 
-def lb_setup(lb_node, server_node):
+def write_reverse_proxy_conf(server_nodes, lbmethod):
+    """
+    :param server_nodes: a list of the server nodes
+    :param lbmethod: the load balancing method to use
+    """
+    # get the IP address of the server nodes
+    server_nodes_ips = []
+    
+    for server in server_nodes:
+        server_node = my_slice.get_node(name = server)
+        server_ip = server_node.get_interface(network_name=f'FABNET_IPv4_{server_node.get_site()}').get_ip_addr()
+        server_ip_string = str(server_ip)
+        server_nodes_ips.append(server_ip_string)
+
+    # create reverse-proxy.conf string
+    reverse_proxy_conf_content = '<Proxy balancer://videostreamer>'
+    
+    for ip in server_nodes_ips:
+        balancer_member = f'\n\tBalancerMember http://{ip}:8080'
+        reverse_proxy_conf_content += balancer_member
+    
+    reverse_proxy_conf_content += f'\n\tProxySet lbmethod={lbmethod}'
+    reverse_proxy_conf_content += '''\n</Proxy>
+    \nProxyPass "/" "balancer://videostreamer/"\nProxyPassReverse "/" "balancer://videostreamer/"
+    '''
+
+    # write reverse_proxy_conf_content to local file
+    try:
+        with open('reverse-proxy.conf', 'w') as file:
+            file.write(reverse_proxy_conf_content)
+
+    except Exception as e:
+        print(e)
+
+    # write the reverse-proxy.conf file to /etc/apache2
+    escaped_rpc_content = reverse_proxy_conf_content.replace("\n", "\\n").replace('"', '\\"')
+    rpc_command = f'echo -e "{escaped_rpc_content}" | sudo tee /etc/apache2/reverse-proxy.conf'
+    output = lb_node.execute(rpc_command)
+
+def lb_setup(lb_node, lbmethod):
+    """
+    :param lb_node: the load balancer
+    :param lbmethod: the load balancer method to use
+    """
     # update and install net-tools and apache2
     stdout, stderr = lb_node.execute('sudo apt-get update && sudo apt install net-tools && sudo apt-get -y install apache2')
 
-    # get the IP address of the server node
-    server_ip = get_node_site_ip_addr(server_node)
-    server_ip_string = str(server_ip)
+    # create and upload the reverse-proxy.conf file
+    write_reverse_proxy_conf(server_nodes = server_nodes, lbmethod = lbmethod)
     
-    # create and write to reverse-proxy.conf file
-    file_name = "reverse-proxy.conf"
-    
-    reverse_proxy_conf_content = f'''"ProxyPass" "/" "http://{server_ip_string}”
-    "ProxyPassReverse" "/" "{server_ip_string}”'''
-    escaped_rpc_content = reverse_proxy_conf_content.replace("\n", "\\n").replace('"', '\\"')
-    
-    rpc_command = f'sudo echo -e "{escaped_rpc_content}" | sudo tee /etc/apache2/{file_name}'
-    lb_node.execute(rpc_command)
-    
-    # append line to apache2.conf
+    # append line to apache2.conf UNCOMMENT IF FIRST TIME RUNNING
     ac_command = 'echo "Include reverse-proxy.conf" | sudo tee -a /etc/apache2/apache2.conf'
     lb_node.execute(ac_command)
     
     # restart apache2
-    lb_node.execute('sudo a2enmod proxy proxy_http proxy_balancer lbmethod_byrequests && sudo systemctl restart apache2')    
-    
-    # Steps:
-        # - Get server IP Address (public facing address always seems to be associated with enp7s0)
-        # - Create reverse-proxy.conf file:
-        
-        # "ProxyPass" "/" "http://<server ip>”
-        # "ProxyPassReverse" "/" "<server ip>”
-        
-        # - Upload reverse-proxy.conf file to /etc/apache2
-        # - Append line to file /etc/apache2/apache2.conf: Include reverse-proxy.conf
-        # - Execute: “sudo a2enmod proxy proxy_http proxy_balancer lbmethod_byrequests && sudo systemctl restart apache2”
-
+    lb_node.execute('sudo a2enmod proxy proxy_http proxy_balancer lbmethod_byrequests && sudo systemctl restart apache2')
 
 # my_slice = make_slice()
 
@@ -144,7 +166,7 @@ client_node = my_slice.get_node(name=client_node_name)
 client_setup(client_node)
 
 lb_node = my_slice.get_node(name=lb_node_name)
-lb_setup(lb_node, server_node)
+lb_setup(lb_node, lbmethod = 'byrequests')
 
 # verify communication
 print(f'{server_node_name} pinging {client_node_name}')

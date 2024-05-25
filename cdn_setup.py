@@ -17,9 +17,6 @@ lb_node_name = 'Load_Balancer'
 
 server_nodes = [server_node_name, server_node_name2]
 
-slice_file = 'cdn_setup.graphml'
-
-
 def renew_slice():
     end_date = (datetime.now(timezone.utc) + datetime.timedelta(days=6)).strftime("%Y-%m-%d %H:%M:%S %z")
     
@@ -45,35 +42,27 @@ def ping(my_slice, from_name, to_name):
     
 
 def make_slice():
-    try:
-        my_slice = fablib.new_slice(name=slice_name)
-        my_slice.load(slice_file)
-        my_slice.submit()
-        return my_slice
-    except Exception as e:
-        print('Slice file not found - creating new slice')
-        
-        my_slice = fablib.new_slice(name=slice_name)
-        
-        [site1, site2, site3, site4] = ['PSC', 'MASS', 'WASH', 'PRIN']
-        print(f"Sites: {site1}, {site2}, {site3}, {site4}")
+    print('Slice file not found - creating new slice')
     
-        server_node = my_slice.add_node(name=server_node_name, site=site1, image='default_ubuntu_22')
-        server_node.add_fabnet()
-
-        server_node2 = my_slice.add_node(name=server_node_name2, site=site4, image='default_ubuntu_22')
-        server_node2.add_fabnet()
+    my_slice = fablib.new_slice(name=slice_name)
     
-        client_node = my_slice.add_node(name=client_node_name, site=site2, image='default_ubuntu_22')
-        client_node.add_fabnet()
+    [site1, site2, site3, site4] = ['PSC', 'MASS', 'WASH', 'PRIN']
+    print(f"Sites: {site1}, {site2}, {site3}, {site4}")
 
-        lb_node = my_slice.add_node(name=lb_node_name, site=site3, image='default_ubuntu_22')
-        lb_node.add_fabnet()
-    
+    server_node = my_slice.add_node(name=server_node_name, site=site1, image='default_ubuntu_22')
+    server_node.add_fabnet()
 
-        my_slice.submit()
-        my_slice.save(slice_file)
-        return my_slice
+    server_node2 = my_slice.add_node(name=server_node_name2, site=site4, image='default_ubuntu_22')
+    server_node2.add_fabnet()
+
+    client_node = my_slice.add_node(name=client_node_name, site=site2, image='default_ubuntu_22')
+    client_node.add_fabnet()
+
+    lb_node = my_slice.add_node(name=lb_node_name, site=site3, image='default_ubuntu_22')
+    lb_node.add_fabnet()
+
+    my_slice.submit()
+    return my_slice
 
 
 def server_setup(server_node, video_path='/home/fabric/work/video_streamer_files/cars.mp4'):

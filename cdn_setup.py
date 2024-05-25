@@ -5,8 +5,6 @@ import os
 
 fablib = fablib_manager()
 
-fablib.show_config();
-
 slice_name = 'client_server_video'
 
 server_node_name = 'Server'
@@ -167,6 +165,7 @@ def setup_nodes():
     lb_setup(lb_node, lbmethod = 'byrequests')
 
 if __name__ == '__main__':
+    fablib.show_config()
     # setup_nodes()
     renew_slice()
 # delete_slice()

@@ -1,41 +1,61 @@
 import sys
-from cdn_setup import my_slice, server_node, server2_node, server_node_name, server_node_name2, lb_node, print_node_sshs, print_node_ips
-from delay import run_tcpdump
+from cdn_setup import my_slice, client_node_name, server_node_name, server_node_name2, lb_node, print_node_sshs, print_node_ips
+from delay import run_tcpdump, generate_traffic_from_node
 
 '''
-Usage:
-python experiment.py <name of server>
+Usage for tcpdump:
+python experiment.py tcpdump <name of server>
 
 Testing scenario:
-Terminal 1: python experiment.py Server
-Terminal 2: python experiment.py Server2
+Terminal 1: python experiment.py tcpdump Server
+Terminal 2: python experiment.py tcpdump Server2
 
 ssh into client:
 curl -O <load_balancer ip>/cars.mp4
 
 Observe traffic on servers from Terminal 1 or 2
+================================================
+
+Usage for gen_traffic:
+python experiment.py gen_traffic <name of server>
+
+Testing scenario:
+Terminal 1: python experiment.py tcpdump Server
+Terminal 2: python experiment.py tcpdump Server2
+Terminal 3: python experiment.py gen_traffic Server
 '''
 
 print_node_sshs() 
 print_node_ips()
 
 
-def experiment1(node):
-    while True:
-        run_tcpdump(node)
+actions = ['tcpdump', 'gen_traffic']
+server_names = [server_node_name, server_node_name2]
 
+def tcpdump(node_name):
+    node = my_slice.get_node(name=node_name)
+    run_tcpdump(node)
+
+
+def gen_traffic(server_node_name):
+    generate_traffic_from_node(client_node_name, server_node_name)
 
 
 if __name__ == '__main__':
-    node_name = sys.argv[1]
-    if node_name == server_node_name:
-        print('Listening on', server_node_name)
-        experiment1(server_node)
-    elif node_name == server_node_name2:
-        print('Listening on', server_node_name2)
-        experiment1(server2_node)
+    action = sys.argv[1]
+    if action not in actions:
+        print(f'Action {action} not found. Available actions:', actions)
+        sys.exit(0)
+
+    server_name = sys.argv[2]
+    if server_name not in [server_node_name, server_node_name2]:
+        print(f'Servername {server_name} not found. Available servers:', server_names)
+        sys.exit(0)
+
+    if action == actions[0]: # TCPDUMP
+        tcpdump(server_name)
     else:
-        print('available node names: ', server_node_name, server_node_name2)
+        gen_traffic(server_name)
 
 
 

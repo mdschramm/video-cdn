@@ -116,7 +116,7 @@ def write_reverse_proxy_conf(server_nodes, lbmethod):
     reverse_proxy_conf_content = '<Proxy balancer://videostreamer>'
     
     for ip in server_nodes_ips:
-        balancer_member = f'\n\tBalancerMember http://{ip}:8080'
+        balancer_member = f'\n\tBalancerMember http://{ip}'
         reverse_proxy_conf_content += balancer_member
     
     reverse_proxy_conf_content += f'\n\tProxySet lbmethod={lbmethod}'
@@ -171,7 +171,6 @@ client_node = my_slice.get_node(name=client_node_name)
 lb_node = my_slice.get_node(name=lb_node_name)
 
 
-# delete_slice()
 
 def setup_nodes():
     server_setup(server_node)
@@ -179,8 +178,10 @@ def setup_nodes():
     client_setup(client_node)
     lb_setup(lb_node, lbmethod = 'byrequests')
 
-
-# setup_nodes()
+if __name__ == '__main__':
+    setup_nodes()
+# delete_slice()
+    
 
 # verify communication
 def verify_nodes():

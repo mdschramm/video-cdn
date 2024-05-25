@@ -1,5 +1,4 @@
-import datetime
-from time import timezone
+from datetime import datetime, timezone, timedelta
 from fabrictestbed_extensions.fablib.fablib import FablibManager as fablib_manager
 import os
 
@@ -18,7 +17,7 @@ lb_node_name = 'Load_Balancer'
 server_nodes = [server_node_name, server_node_name2]
 
 def renew_slice():
-    end_date = (datetime.now(timezone.utc) + datetime.timedelta(days=6)).strftime("%Y-%m-%d %H:%M:%S %z")
+    end_date = (datetime.now(timezone.utc) + timedelta(days=6)).strftime("%Y-%m-%d %H:%M:%S %z")
     
     try:
         slice = fablib.get_slice(name=slice_name)
@@ -148,7 +147,7 @@ def get_slice():
     try: 
         return make_slice()
     except Exception as e:
-        print(f'Slice already exists - getching slice')
+        print(f'Slice already exists - fetching slice')
         return fablib.get_slice(name=slice_name)
 
 
@@ -168,7 +167,8 @@ def setup_nodes():
     lb_setup(lb_node, lbmethod = 'byrequests')
 
 if __name__ == '__main__':
-    setup_nodes()
+    # setup_nodes()
+    renew_slice()
 # delete_slice()
     
 

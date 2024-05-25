@@ -82,7 +82,7 @@ def server_setup(server_node, video_path='/home/fabric/work/video_streamer_files
         
 
     # Install necessary packages
-    stdout, stderr = server_node.execute('sudo apt-get update && sudo apt install net-tools && sudo apt-get -y install apache2')
+    stdout, stderr = server_node.execute('sudo apt-get update && sudo apt install net-tools && sudo apt-get -y install apache2 && sudo apt install tcpdump')
     # Upload video file to server
 
     server_node.upload_file(video_path, '/home/ubuntu/cars.mp4')
@@ -90,7 +90,10 @@ def server_setup(server_node, video_path='/home/fabric/work/video_streamer_files
     server_node.execute(f'sudo mv /home/ubuntu/cars.mp4 /var/www/html')
     
 def client_setup(client_node):
-    stdout, stderr = client_node.execute('sudo apt-get update && sudo apt install net-tools && sudo apt-get upgrade -y')
+    stdout, stderr = client_node.execute('sudo apt-get update && sudo apt install net-tools && sudo apt-get upgrade -y && sudo apt install tcpdump')
+
+def get_interface_name(node):
+    return node.get_interface(network_name=f'FABNET_IPv4_{node.get_site()}').get_device_name()
 
 def get_node_site_ip_addr(node):
     return node.get_interface(network_name=f'FABNET_IPv4_{node.get_site()}').get_ip_addr()
@@ -140,7 +143,7 @@ def lb_setup(lb_node, lbmethod):
     :param lbmethod: the load balancer method to use
     """
     # update and install net-tools and apache2
-    stdout, stderr = lb_node.execute('sudo apt-get update && sudo apt install net-tools && sudo apt-get -y install apache2')
+    stdout, stderr = lb_node.execute('sudo apt-get update && sudo apt install net-tools && sudo apt-get -y install apache2 && sudo apt install tcpdump')
 
     # create and upload the reverse-proxy.conf file
     write_reverse_proxy_conf(server_nodes = server_nodes, lbmethod = lbmethod)
@@ -152,42 +155,65 @@ def lb_setup(lb_node, lbmethod):
     # restart apache2
     lb_node.execute('sudo a2enmod proxy proxy_http proxy_balancer lbmethod_byrequests && sudo systemctl restart apache2')
 
-# my_slice = make_slice()
+def get_slice():
+    try: 
+        return make_slice()
+    except Exception as e:
+        print(f'Slice already exists - getching slice')
+        return fablib.get_slice(name=slice_name)
 
-my_slice = fablib.get_slice(name=slice_name)
-# delete_slice()
+
+my_slice = get_slice()
+
 server_node = my_slice.get_node(name=server_node_name)
-server_setup(server_node)
-
-server2 = my_slice.get_node(name=server_node_name2)
-server_setup(server_node)
-
+server2_node = my_slice.get_node(name=server_node_name2)
 client_node = my_slice.get_node(name=client_node_name)
-client_setup(client_node)
-
 lb_node = my_slice.get_node(name=lb_node_name)
-lb_setup(lb_node, lbmethod = 'byrequests')
+
+
+# delete_slice()
+
+def setup_nodes():
+    server_setup(server_node)
+    server_setup(server2_node)
+    client_setup(client_node)
+    lb_setup(lb_node, lbmethod = 'byrequests')
+
+
+# setup_nodes()
 
 # verify communication
-print(f'{server_node_name} pinging {client_node_name}')
-ping(my_slice, server_node_name, client_node_name)
+def verify_nodes():
+    print(f'{server_node_name} pinging {client_node_name}')
+    ping(my_slice, server_node_name, client_node_name)
 
-print(f'{server_node_name2} pinging {client_node_name}')
-ping(my_slice, server_node_name2, client_node_name)
+    print(f'{server_node_name2} pinging {client_node_name}')
+    ping(my_slice, server_node_name2, client_node_name)
 
-print(f'{server_node_name} pinging {lb_node_name}')
-ping(my_slice, server_node_name, lb_node_name)
+    print(f'{server_node_name} pinging {lb_node_name}')
+    ping(my_slice, server_node_name, lb_node_name)
 
-print(f'{server_node_name2} pinging {lb_node_name}')
-ping(my_slice, server_node_name2, lb_node_name)
+    print(f'{server_node_name2} pinging {lb_node_name}')
+    ping(my_slice, server_node_name2, lb_node_name)
 
-print(f'{lb_node_name} pinging {client_node_name}')
-ping(my_slice, lb_node_name, client_node_name)
+    print(f'{lb_node_name} pinging {client_node_name}')
+    ping(my_slice, lb_node_name, client_node_name)
 
-print(server_node.get_ssh_command())
-print(client_node.get_ssh_command())
-print(lb_node.get_ssh_command())
+def print_node_sshs():
+    print('server')
+    print(server_node.get_ssh_command())
+    print('server2')
+    
+    print(server2_node.get_ssh_command())
+    print('client')
+    
+    print(client_node.get_ssh_command())
+    print('lb')
+    
+    print(lb_node.get_ssh_command())
 
-print(get_node_site_ip_addr(server_node))
-print(get_node_site_ip_addr(client_node))
-print(get_node_site_ip_addr(lb_node))
+def print_node_ips():
+    print(f'Server site IP: {get_node_site_ip_addr(server_node)}')
+    print(f'Server2 site IP: {get_node_site_ip_addr(server2_node)}')
+    print(f'Client site IP: {get_node_site_ip_addr(client_node)}')
+    print(f'LB site IP: {get_node_site_ip_addr(lb_node)}')

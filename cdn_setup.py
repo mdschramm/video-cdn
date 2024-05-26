@@ -1,16 +1,14 @@
 from datetime import datetime, timezone, timedelta
+import itertools
 from fabrictestbed_extensions.fablib.fablib import FablibManager as fablib_manager
-from nodes import make_servers, list_server_nodes, site1, site2, site3, site4
+from nodes import make_servers, make_clients, client_sites, list_server_nodes,list_client_nodes, site1, site2, site3, site4
 import os
-
+import json
 
 fablib = fablib_manager()
 
-fablib.show_config();
-
 slice_name = 'client_server_video'
 
-client_node_name = 'Client'
 lb_node_name = 'Load_Balancer'
 
 video_file_name = 'cars.mp4'
@@ -65,7 +63,7 @@ def ping(my_slice, from_name, to_name):
         return 'No failed connections'
 
 def verify_nodes():
-    node_names = my_slice.list_nodes().data['Name'].to_list()
+    node_names = [node['name'] for node in json.loads(my_slice.list_nodes(output='json', quiet=True))]
     pairs = list(itertools.combinations(node_names, 2))
     
     for pair in pairs:
@@ -75,7 +73,6 @@ def verify_nodes():
 
 """
 def make_slice():
-    print('Slice file not found - creating new slice')
     
     my_slice = fablib.new_slice(name=slice_name)
     
@@ -94,12 +91,10 @@ def make_slice():
     return my_slice
 """
 
-def make_slice(num_clients, client_sites):
+def make_slice(client_sites):
     """
-    :param num_clients: integer referring to the number of client machines you want to create
-    :param client_sites: a list containing the sites you want to use for your clients. must be the same length as num_clients
+    :param client_sites: a list containing the sites you want to use for your clients
     """
-    print('Slice file not found - creating new slice')
     
     my_slice = fablib.new_slice(name=slice_name)
     
@@ -109,7 +104,7 @@ def make_slice(num_clients, client_sites):
     make_servers(my_slice)
 
     # create clients
-    make_clients(my_slice, num_clients=num_clients, client_sites=client_sites)
+    make_clients(my_slice, client_sites=client_sites)
 
     # create load balancer
     lb_node = my_slice.add_node(name=lb_node_name, site=site3, image='default_ubuntu_22')
@@ -201,60 +196,50 @@ def lb_setup(lb_node, lbmethod):
     lb_node.execute('sudo a2enmod proxy proxy_http proxy_balancer lbmethod_byrequests && sudo systemctl restart apache2')
 
 def get_slice():
-    try: 
-        return make_slice()
+    try:
+        return make_slice(client_sites)
     except Exception as e:
         print(f'Slice already exists - fetching slice')
         return fablib.get_slice(name=slice_name)
 
 
 my_slice = get_slice()
-
-client_node = my_slice.get_node(name=client_node_name)
 lb_node = my_slice.get_node(name=lb_node_name)
-
 
 
 def setup_nodes():
     for sn in list_server_nodes(my_slice):
         server_setup(sn)
-    client_setup(client_node)
+
+    for cn in list_client_nodes(my_slice):
+        client_setup(cn)
+
     lb_setup(lb_node, lbmethod = 'byrequests')
 
 
-# verify communication
-def verify_nodes():
-    # server to client
-    for sn in list_server_nodes(my_slice):
-        sn_name = sn.get_name()
-        ping(my_slice, sn_name, client_node_name)
-        ping(my_slice, sn_name, lb_node_name)
-
-    ping(my_slice, client_node_name, lb_node_name)
-
 if __name__ == '__main__':
-    pass
-    # setup_nodes()
+    fablib.show_config()
+    verify_nodes()
+    setup_nodes()
     # renew_slice()
     # delete_slice()
-    # verify_nodes()
     
-
-
-    
-
 def print_node_sshs():
     for sn in list_server_nodes(my_slice):
         print(sn.get_name())
         print(sn.get_ssh_command())
     
     print('client')
-    print(client_node.get_ssh_command())
+    for cn in list_client_nodes(my_slice):
+        print(cn.get_name())
+        print(cn.get_ssh_command())
+    
     print('lb')
     print(lb_node.get_ssh_command())
 
 def print_node_ips():
     for sn in list_server_nodes(my_slice):
         print(f'{sn.get_name()} site IP: {get_node_site_ip_addr(sn)}')
-    print(f'Client site IP: {get_node_site_ip_addr(client_node)}')
+    for cn in list_client_nodes(my_slice):
+        print(f'{cn.get_name()} site IP: {get_node_site_ip_addr(cn)}')
     print(f'LB site IP: {get_node_site_ip_addr(lb_node)}')

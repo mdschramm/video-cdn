@@ -1,6 +1,6 @@
 import sys
-from cdn_setup import my_slice, client_node_name, lb_node, print_node_sshs, print_node_ips
-from nodes import list_server_nodes
+from cdn_setup import my_slice, lb_node, print_node_sshs, print_node_ips
+from nodes import list_server_nodes, list_client_nodes
 from delay import run_tcpdump, generate_traffic_from_node
 
 '''
@@ -8,8 +8,8 @@ Usage for tcpdump:
 python experiment.py tcpdump <name of server>
 
 Testing scenario:
-Terminal 1: python experiment.py tcpdump Server
-Terminal 2: python experiment.py tcpdump Server2
+Terminal 1: python experiment.py tcpdump server1
+Terminal 2: python experiment.py tcpdump server2
 
 ssh into client:
 curl -O <load_balancer ip>/cars.mp4
@@ -21,9 +21,9 @@ Usage for gen_traffic:
 python experiment.py gen_traffic <name of server>
 
 Testing scenario:
-Terminal 1: python experiment.py tcpdump Server
-Terminal 2: python experiment.py tcpdump Server2
-Terminal 3: python experiment.py gen_traffic Server
+Terminal 1: python experiment.py tcpdump server
+Terminal 2: python experiment.py tcpdump server2
+Terminal 3: python experiment.py gen_traffic server
 '''
 
 print_node_sshs() 
@@ -39,7 +39,9 @@ def tcpdump(node_name):
 
 
 def gen_traffic(server_node_name):
-    generate_traffic_from_node(client_node_name, server_node_name)
+    # TODO don't just pick first client
+    client_name = list_client_nodes(my_slice)[0].get_name()
+    generate_traffic_from_node(client_name, server_node_name)
 
 
 if __name__ == '__main__':

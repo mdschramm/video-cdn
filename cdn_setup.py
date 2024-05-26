@@ -32,14 +32,48 @@ def delete_slice():
     except Exception as e:
         print(f"Exception: {e}")
 
+"""
 def ping(my_slice, from_name, to_name):
     print(f'Pinging from {from_name} to {to_name}')
     from_node = my_slice.get_node(name=from_name)
     to_node = my_slice.get_node(name=to_name)
     to_addr = to_node.get_interface(network_name=f'FABNET_IPv4_{to_node.get_site()}').get_ip_addr()
     stdout, stderr = from_node.execute(f'ping -c 5 {to_addr}')
-    
+"""
 
+def ping(my_slice, from_name, to_name):
+    failed_connections = []
+    
+    print(f'Pinging from {from_name} to {to_name}')
+    from_node = my_slice.get_node(name=from_name)
+    to_node = my_slice.get_node(name=to_name)
+    to_addr = to_node.get_interface(network_name=f'FABNET_IPv4_{to_node.get_site()}').get_ip_addr()
+    
+    print(f'{from_name} pinging {to_name}')
+    stdout, stderr = from_node.execute(f'ping -c 5 {to_addr}', quiet = True)
+
+    if '0% packet loss' in stdout:
+        print(f'SUCCESS: connection from {from_name} to {to_name}\n')
+    else:
+        print(f'FAILED: connection from {from_name} to {to_name}')
+        print(stdout, '\n')
+        failed_connections.append((from_name, to_name))
+
+    if failed_connections:
+        return failed_connections
+    else:
+        return 'No failed connections'
+
+def verify_nodes():
+    node_names = my_slice.list_nodes().data['Name'].to_list()
+    pairs = list(itertools.combinations(node_names, 2))
+    
+    for pair in pairs:
+        from_name = pair[0]
+        to_name = pair[1]
+        ping(my_slice, from_name, to_name)
+
+"""
 def make_slice():
     print('Slice file not found - creating new slice')
     
@@ -49,10 +83,35 @@ def make_slice():
 
     make_servers(my_slice)
 
+    make_clients()
+    #client_node = my_slice.add_node(name=client_node_name, site=site2, image='default_ubuntu_22')
+    #client_node.add_fabnet()
 
-    client_node = my_slice.add_node(name=client_node_name, site=site2, image='default_ubuntu_22')
-    client_node.add_fabnet()
+    lb_node = my_slice.add_node(name=lb_node_name, site=site3, image='default_ubuntu_22')
+    lb_node.add_fabnet()
 
+    my_slice.submit()
+    return my_slice
+"""
+
+def make_slice(num_clients, client_sites):
+    """
+    :param num_clients: integer referring to the number of client machines you want to create
+    :param client_sites: a list containing the sites you want to use for your clients. must be the same length as num_clients
+    """
+    print('Slice file not found - creating new slice')
+    
+    my_slice = fablib.new_slice(name=slice_name)
+    
+    print(f"Sites: {site1}, {site2}, {site3}, {site4}")
+
+    # create servers
+    make_servers(my_slice)
+
+    # create clients
+    make_clients(my_slice, num_clients=num_clients, client_sites=client_sites)
+
+    # create load balancer
     lb_node = my_slice.add_node(name=lb_node_name, site=site3, image='default_ubuntu_22')
     lb_node.add_fabnet()
 

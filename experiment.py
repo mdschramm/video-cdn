@@ -24,6 +24,12 @@ Testing scenario:
 Terminal 1: python experiment.py tcpdump server1
 Terminal 2: python experiment.py tcpdump server2
 Terminal 3: python experiment.py gen_traffic server1
+
+
+Stream from Client (Used for real-client to generate 
+traffic for perf measuring):
+============================================
+python experiment.py stream_on_client Client_1
 '''
 
 print_node_sshs() 
@@ -39,7 +45,6 @@ def tcpdump(node_name):
 
 
 def gen_traffic(server_node_name):
-    # TODO don't just pick first client
     client_name = list_client_nodes(my_slice)[0].get_name()
     generate_traffic_from_node(client_name, server_node_name)
 
@@ -52,7 +57,7 @@ if __name__ == '__main__':
 
     node_name = sys.argv[2]
     if node_name not in node_names:
-        print(f'Node {server_name} not found. Available nodes:', node_names)
+        print(f'Node {node_name} not found. Available nodes:', node_names)
         sys.exit(0)
 
     if action == actions[0]: # TCPDUMP

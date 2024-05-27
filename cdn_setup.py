@@ -178,7 +178,7 @@ def write_reverse_proxy_conf(server_nodes, lbmethod):
     
     reverse_proxy_conf_content += f'\n\tProxySet lbmethod={lbmethod}'
     reverse_proxy_conf_content += '''\n</Proxy>
-    \nProxyPass "/" "balancer://videostreamer/"\nProxyPassReverse "/" "balancer://videostreamer/"
+    \nProxyPass /balancer-manager !\nProxyPass "/" "balancer://videostreamer/"\nProxyPassReverse "/" "balancer://videostreamer/"
     '''
 
     # write reverse_proxy_conf_content to local file
@@ -200,7 +200,7 @@ def lb_setup(lb_node, lbmethod):
     :param lbmethod: the load balancer method to use
     """
     # update and install net-tools and apache2
-    stdout, stderr = lb_node.execute('sudo apt-get update && sudo apt install net-tools && sudo apt-get -y install apache2 && sudo apt install tcpdump')
+    stdout, stderr = lb_node.execute('sudo apt-get update && sudo apt install net-tools && sudo apt-get -y install apache2 && sudo a2enmod proxy proxy_http proxy_balancer lbmethod_byrequests && sudo apt install tcpdump')
 
 
     server_node_names = [n.get_name() for n in list_server_nodes(my_slice)]
@@ -210,9 +210,16 @@ def lb_setup(lb_node, lbmethod):
     # append line to apache2.conf UNCOMMENT IF FIRST TIME RUNNING
     ac_command = 'echo "Include reverse-proxy.conf" | sudo tee -a /etc/apache2/apache2.conf'
     lb_node.execute(ac_command)
+
+    # Enable balancer manager dashboard
+    status_conf_path = '/home/fabric/work/proxy_balancer.conf'
+    lb_node.upload_file(status_conf_path, '/home/ubuntu/proxy_balancer.conf')
+    lb_node.execute('sudo mv /home/ubuntu/proxy_balancer.conf /etc/apache2/mods-enabled')
     
     # restart apache2
-    lb_node.execute('sudo a2enmod proxy proxy_http proxy_balancer lbmethod_byrequests && sudo systemctl restart apache2')
+    lb_node.execute('sudo systemctl restart apache2')
+
+
 
 def get_slice():
     try:
@@ -244,19 +251,17 @@ dashboard
 '''
 def print_local_tunneling_commands():
     print('Run these from a local folder containing a copy of slice_key and ssh_config')
-    for sn in list_server_nodes(my_slice):
+    print('Server tunnels===================')
+    server_nodes = list_server_nodes(my_slice)
+    for i, sn in enumerate(server_nodes):
         username = sn.get_username()
         manage_ip = sn.get_management_ip()
         print(f'{sn.get_name()} command:')
-        print(f'ssh -L {tunnel_port}:localhost:80 -F ssh_config -i slice_key {username}@{manage_ip}')
-
-if __name__ == '__main__':
-    fablib.show_config()
-    verify_nodes()
-    setup_nodes()
-    # renew_slice()
-    # delete_slice()
-    print_local_tunneling_commands()
+        print(f'ssh -L {tunnel_port+i}:localhost:80 -F ssh_config -i slice_key {username}@{manage_ip}')
+    print('LB tunnel======================')
+    username = lb_node.get_username()
+    manage_ip = lb_node.get_management_ip()
+    print(f'ssh -L {tunnel_port+len(server_nodes)}:localhost:80 -F ssh_config -i slice_key {username}@{manage_ip}')
 
     
 def print_node_sshs():
@@ -280,3 +285,10 @@ def print_node_ips():
 
 
         
+if __name__ == '__main__':
+    fablib.show_config()
+    verify_nodes()
+    setup_nodes()
+    # renew_slice()
+    # delete_slice()
+    print_local_tunneling_commands()

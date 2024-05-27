@@ -120,12 +120,31 @@ def server_setup(server_node, video_path='/home/fabric/work/video_streamer_files
         
 
     # Install necessary packages
-    stdout, stderr = server_node.execute('sudo apt-get update && sudo apt install net-tools && sudo apt-get -y install apache2 && sudo apt install tcpdump')
+    stdout, stderr = server_node.execute('sudo apt-get update && sudo apt install net-tools && sudo apt-get -y install apache2 && sudo apt install tcpdump && sudo a2enmod lua')
     # Upload video file to server
 
+    # source data file
     server_node.upload_file(video_path, '/home/ubuntu/cars.mp4')
-
     server_node.execute(f'sudo mv /home/ubuntu/cars.mp4 /var/www/html')
+
+    # load lua script for server dashboard into server /etc/apache2 dir
+    lua_script_path = '/home/fabric/work/server-status.lua'
+    server_node.upload_file(lua_script_path, '/home/ubuntu/server-status.lua')
+    server_node.execute('sudo mv /home/ubuntu/server-status.lua /etc/apache2')
+
+    # Replace existing status.conf file with lua module enabled
+    # This seems bad
+    status_conf_path = '/home/fabric/work/status.conf'
+    server_node.upload_file(status_conf_path, '/home/ubuntu/status.conf')
+    server_node.execute('sudo mv /home/ubuntu/status.conf /etc/apache2/mods-enabled')
+
+    lua_module_command = 'LoadModule lua_module modules/mod_lua.so'
+    # load lua module in apache2.conf
+    server_node.execute(f'echo -e "{lua_module_command}" | sudo tee -a /etc/apache2/apache2.conf')
+
+    # reload server with new configuration
+    server_node.execute('sudo systemctl reload apache2')
+
     
 def client_setup(client_node):
     stdout, stderr = client_node.execute('sudo apt-get update && sudo apt install net-tools && sudo apt-get upgrade -y && sudo apt install tcpdump')
@@ -224,8 +243,7 @@ to any server node. This is required in order to view the server-status
 dashboard
 '''
 def print_local_tunneling_commands():
-    print('===============SERVER NODE TUNNELING COMMANDS===============')
-    print('Run these from a local folder containing a copy of slice_key and ssh_config:')
+    print('Run these from a local folder containing a copy of slice_key and ssh_config')
     for sn in list_server_nodes(my_slice):
         username = sn.get_username()
         manage_ip = sn.get_management_ip()
@@ -234,11 +252,12 @@ def print_local_tunneling_commands():
 
 if __name__ == '__main__':
     fablib.show_config()
-    # verify_nodes()
-    # setup_nodes()
+    verify_nodes()
+    setup_nodes()
     # renew_slice()
     # delete_slice()
     print_local_tunneling_commands()
+
     
 def print_node_sshs():
     for sn in list_server_nodes(my_slice):
@@ -258,7 +277,6 @@ def print_node_ips():
     for cn in list_client_nodes(my_slice):
         print(f'{cn.get_name()} site IP: {get_node_site_ip_addr(cn)}')
     print(f'LB site IP: {get_node_site_ip_addr(lb_node)}')
-
 
 
         

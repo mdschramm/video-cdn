@@ -4,6 +4,7 @@ from fabrictestbed_extensions.fablib.fablib import FablibManager as fablib_manag
 from nodes import make_servers, make_clients, client_sites, list_server_nodes,list_client_nodes, site1, site2, site3, site4
 import os
 import json
+import random
 
 fablib = fablib_manager()
 
@@ -11,7 +12,7 @@ slice_name = 'client_server_video'
 
 lb_node_name = 'Load_Balancer'
 
-video_file_name = 'cars.mp4'
+video_file_name = 'cars.mov'
 
 def renew_slice():
     end_date = (datetime.now(timezone.utc) + timedelta(days=6)).strftime("%Y-%m-%d %H:%M:%S %z")
@@ -48,7 +49,7 @@ def ping(my_slice, from_name, to_name):
     to_addr = to_node.get_interface(network_name=f'FABNET_IPv4_{to_node.get_site()}').get_ip_addr()
     
     print(f'{from_name} pinging {to_name}')
-    stdout, stderr = from_node.execute(f'ping -c 5 {to_addr}', quiet = True)
+    stdout, stderr = from_node.execute(f'ping -c 1 {to_addr}', quiet = True)
 
     if '0% packet loss' in stdout:
         print(f'SUCCESS: connection from {from_name} to {to_name}\n')
@@ -65,8 +66,9 @@ def ping(my_slice, from_name, to_name):
 def verify_nodes():
     node_names = [node['name'] for node in json.loads(my_slice.list_nodes(output='json', quiet=True))]
     pairs = list(itertools.combinations(node_names, 2))
-    
-    for pair in pairs:
+    choices = random.choices(pairs, k=int(len(pairs) * .2))
+    print(f'Ping testing {len(choices)} nodes')
+    for pair in choices:
         from_name = pair[0]
         to_name = pair[1]
         ping(my_slice, from_name, to_name)
@@ -114,18 +116,15 @@ def make_slice(client_sites):
     return my_slice
 
 
-def server_setup(server_node, video_path='/home/fabric/work/video_streamer_files/cars.mp4'):
-    # TODO threadify
-    video_path = video_path if os.path.exists(video_path) else '/home/fabric/work/video_streamer_files/soccer_vid.mp4'
-        
+def server_setup(server_node, video_path='/home/fabric/work/video_streamer_files/cars.mov'):
 
     # Install necessary packages
     stdout, stderr = server_node.execute('sudo apt-get update && sudo apt install net-tools && sudo apt-get -y install apache2 && sudo apt install tcpdump && sudo a2enmod lua')
     # Upload video file to server
 
     # source data file
-    server_node.upload_file(video_path, '/home/ubuntu/cars.mp4')
-    server_node.execute(f'sudo mv /home/ubuntu/cars.mp4 /var/www/html')
+    server_node.upload_file(video_path, '/home/ubuntu/cars.mov')
+    server_node.execute(f'sudo mv /home/ubuntu/cars.mov /var/www/html')
 
     # load lua script for server dashboard into server /etc/apache2 dir
     lua_script_path = '/home/fabric/work/server-status.lua'
@@ -200,7 +199,7 @@ def lb_setup(lb_node, lbmethod):
     :param lbmethod: the load balancer method to use
     """
     # update and install net-tools and apache2
-    stdout, stderr = lb_node.execute('sudo apt-get update && sudo apt install net-tools && sudo apt-get -y install apache2 && sudo a2enmod proxy proxy_http proxy_balancer lbmethod_byrequests && sudo apt install tcpdump')
+    stdout, stderr = lb_node.execute('sudo apt-get update && sudo apt install net-tools && sudo apt-get -y install apache2 && sudo a2enmod proxy proxy_http proxy_balancer lbmethod_byrequests lbmethod_bytraffic lbmethod_bybusyness lbmethod_heartbeat && sudo apt install tcpdump')
 
 
     server_node_names = [n.get_name() for n in list_server_nodes(my_slice)]
@@ -219,6 +218,11 @@ def lb_setup(lb_node, lbmethod):
     # restart apache2
     lb_node.execute('sudo systemctl restart apache2')
 
+# Dyanmically sets list of servers to communicate with by calling 
+# write_reverse_proxy_conf and reloading the apache server
+
+def set_lb_server_nodes():
+    pass
 
 
 def get_slice():
@@ -288,7 +292,8 @@ def print_node_ips():
 if __name__ == '__main__':
     fablib.show_config()
     verify_nodes()
-    setup_nodes()
+    # setup_nodes()
     # renew_slice()
     # delete_slice()
+    print_node_sshs()
     print_local_tunneling_commands()

@@ -30,7 +30,7 @@ print_node_sshs()
 print_node_ips()
 
 
-actions = ['tcpdump', 'gen_traffic']
+actions = ['tcpdump', 'gen_traffic', 'client_tcp_dump']
 server_names = [n.get_name() for n in list_server_nodes(my_slice)]
 
 def tcpdump(node_name):
@@ -42,6 +42,27 @@ def gen_traffic(server_node_name):
     # TODO don't just pick first client
     client_name = list_client_nodes(my_slice)[0].get_name()
     generate_traffic_from_node(client_name, server_node_name)
+
+
+def client_tcp_dump():
+    client_node_name = 'Client_1'
+    experiment_num = '1'
+    client_node = my_slice.get_node('Client_1')
+    
+    # get public ip of client
+    client_ip = str(client_node.get_interface(network_name=f'FABNET_IPv4_{client_node.get_site()}').get_ip_addr())
+    
+    # get interface associated with public ip
+    interface = client_node.execute(f'ip addr show | grep {client_ip}')[0].split()[-1]
+    
+    # tcp dump
+    file_name = f'{client_node_name}_tcp_dump_{experiment_num}.pcap'
+    print('Running tcp dump')
+    save_tcp_dump = f'timeout 15 sudo tcpdump -i {interface} -w {file_name} & sleep 15 && sudo pkill -f tcpdump'
+    client_node.execute(save_tcp_dump)
+    
+    # copy tcp dump to local
+    client_node.download_file(f'/home/fabric/work/{file_name}', f'/home/ubuntu/{file_name}')
 
 
 if __name__ == '__main__':
@@ -57,6 +78,8 @@ if __name__ == '__main__':
 
     if action == actions[0]: # TCPDUMP
         tcpdump(server_name)
+    elif action == actions[2]:
+        client_tcp_dump()
     else:
         gen_traffic(server_name)
 

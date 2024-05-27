@@ -217,24 +217,39 @@ def setup_nodes():
     lb_setup(lb_node, lbmethod = 'byrequests')
 
 
+tunnel_port = 10010
+'''
+Print commands to tunnel local requests to localhost:<tunnel_port>
+to any server node. This is required in order to view the server-status
+dashboard
+'''
+def print_local_tunneling_commands():
+    print('===============SERVER NODE TUNNELING COMMANDS===============')
+    print('Run these from a local folder containing a copy of slice_key and ssh_config:')
+    for sn in list_server_nodes(my_slice):
+        username = sn.get_username()
+        manage_ip = sn.get_management_ip()
+        print(f'{sn.get_name()} command:')
+        print(f'ssh -L {tunnel_port}:localhost:80 -F ssh_config -i slice_key {username}@{manage_ip}')
+
 if __name__ == '__main__':
     fablib.show_config()
-    verify_nodes()
-    setup_nodes()
+    # verify_nodes()
+    # setup_nodes()
     # renew_slice()
     # delete_slice()
+    print_local_tunneling_commands()
     
 def print_node_sshs():
     for sn in list_server_nodes(my_slice):
         print(sn.get_name())
         print(sn.get_ssh_command())
     
-    print('client')
     for cn in list_client_nodes(my_slice):
         print(cn.get_name())
         print(cn.get_ssh_command())
     
-    print('lb')
+    print(lb_node.get_name())
     print(lb_node.get_ssh_command())
 
 def print_node_ips():
@@ -243,3 +258,7 @@ def print_node_ips():
     for cn in list_client_nodes(my_slice):
         print(f'{cn.get_name()} site IP: {get_node_site_ip_addr(cn)}')
     print(f'LB site IP: {get_node_site_ip_addr(lb_node)}')
+
+
+
+        

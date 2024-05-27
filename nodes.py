@@ -4,9 +4,7 @@
 # Cannot go beyond 2 cores, 10 RAM
 server_specs = [
     {'cores': 1, 'ram': 4, 'name':'server1', 'site':site1},
-    # {'cores': 1, 'ram': 8, 'name':'server2', 'site':site4},
-    # {'cores': 2, 'ram': 5, 'name':'server3', 'site':site4},
-    # {'cores': 2, 'ram': 10, 'name':'server4', 'site':site1},
+    {'cores': 2, 'ram': 10, 'name':'server2', 'site':site4},
 ]
 
 # Site of each node to make

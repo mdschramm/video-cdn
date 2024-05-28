@@ -39,11 +39,12 @@ Used to create 'real' traffic on performance-monitored client nodes.
 Pings from client to load-balancer
 '''
 
-def stream_on_client(client_name, num_threads=5):
+def stream_on_client(client_name, server_name=None, num_threads=5):
     lb_node_name = lb_node.get_name()
+    dest_name = lb_node_name if server_name is None else server_name
     while True:
         print(f'Making {num_threads} requests from {client_name}')
-        threads = [visit_node(client_name, lb_node_name) for _ in range(num_threads)]
+        threads = [visit_node(client_name, dest_name) for _ in range(num_threads)]
         results = [thread.result() for thread in threads]
         sleep(0.5)
     

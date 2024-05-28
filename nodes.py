@@ -8,8 +8,8 @@ server_specs = [
 ]
 
 # Site of each node to make
-# client_sites = ['MASS', 'MASS', 'WASH', 'PRIN', 'PRIN', 'PSC']
-client_sites = ['MASS']
+client_sites = ['MASS', 'MASS', 'WASH', 'PRIN', 'PRIN', 'PSC']
+# client_sites = ['MASS']
 
 # Makes server nodes and returns a list of the nodes
 def make_servers(my_slice):

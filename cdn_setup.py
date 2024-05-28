@@ -8,7 +8,7 @@ import random
 
 fablib = fablib_manager()
 
-slice_name = 'client_server_video'
+slice_name = 'client_server_video_shared'
 
 lb_node_name = 'Load_Balancer'
 
@@ -112,7 +112,8 @@ def make_slice(client_sites):
     lb_node = my_slice.add_node(name=lb_node_name, site=site3, image='default_ubuntu_22')
     lb_node.add_fabnet()
 
-    my_slice.submit()
+    extra_ssh_keys = ['ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDAJdktqr5QZT6QoKnE1v1v60X63D3c5xuQFSz8fmItpQc551Jn7w4AkgXK+dXCxw04rIBvh31iFaNRdj3yFApW1qjToyYhOgMCzCrIvYqhu87ycYZXOpjBSUR/J3P+PoqfEUW5j/oyk9vwrMy1sCoafDUUdSNLliWXN6rb70+BBTN99PRthUgmGA9DbtqIv4OLK9+sveSOe65/n6b4EDYyb3PByz5Lb4Y+gN85ohskPZkemCL0ORy1KB+H1KHDe6bzVYZRkOxRyG6VGNFD+wLmXimDeVdKAwC6Yvc75gZH+Fxz9ay3BEY7HNMcQsqqSeJuQhDy0EqT1yE8uKJg5zFLTffIMphY6UGvzAxATu2K95O6PTmBb6NRU8+5z+BSWf6vGjZscj+/2PwUqF8x5J/lu98KPm0ZLHH1aUoIO8+SQ27U1GqTQFUu357/9IAtzlXRY/zC0OC9O678nkjluiOEXRhcO2i1TMeuWqNzY8mMUduWMqzphlGkMQoXgp6CaIM= fabric@localhost']
+    my_slice.submit(extra_ssh_keys=extra_ssh_keys)
     return my_slice
 
 
@@ -227,6 +228,7 @@ def set_lb_server_nodes():
 
 def get_slice():
     try:
+
         return make_slice(client_sites)
     except Exception as e:
         print(f'Slice already exists - fetching slice')
@@ -292,7 +294,7 @@ def print_node_ips():
 if __name__ == '__main__':
     fablib.show_config()
     verify_nodes()
-    # setup_nodes()
+    setup_nodes()
     # renew_slice()
     # delete_slice()
     print_node_sshs()

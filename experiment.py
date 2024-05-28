@@ -32,8 +32,8 @@ traffic for perf measuring):
 python experiment.py stream_on_client Client_1
 '''
 
-print_node_sshs() 
-print_node_ips()
+# print_node_sshs() 
+# print_node_ips()
 
 
 actions = ['tcpdump', 'gen_traffic', 'client_tcp_dump', 'stream_on_client']
@@ -63,7 +63,7 @@ def client_tcp_dump():
     # tcp dump
     file_name = f'{client_node_name}_tcp_dump_{experiment_num}.pcap'
     print('Running tcp dump')
-    save_tcp_dump = f'timeout 15 sudo tcpdump -i {interface} -w {file_name} & sleep 15 && sudo pkill -f tcpdump'
+    save_tcp_dump = f'timeout 10 sudo tcpdump -i {interface} -w {file_name} & sleep 10 && sudo pkill -f tcpdump'
     client_node.execute(save_tcp_dump)
     
     # copy tcp dump to local
@@ -81,12 +81,14 @@ if __name__ == '__main__':
         print(f'Node {node_name} not found. Available nodes:', node_names)
         sys.exit(0)
 
+    dest_name = sys.argv[3] if len(sys.argv) == 4 else None
+
     if action == actions[0]: # TCPDUMP
-        tcpdump(server_name)
+        tcpdump(dest_name)
     elif action == actions[2]:
         client_tcp_dump()
     else:
-        stream_on_client(node_name)
+        stream_on_client(node_name, dest_name)
 
 
 
